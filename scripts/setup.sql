@@ -63,6 +63,9 @@ CREATE DATABASE IF NOT EXISTS NETWORK_OPERATIONS
 
 USE DATABASE NETWORK_OPERATIONS;
 
+-- Grant all privileges to ACCOUNTADMIN to ensure schema creation works
+GRANT ALL PRIVILEGES ON DATABASE NETWORK_OPERATIONS TO ROLE ACCOUNTADMIN;
+
 -- Create schemas for different network domains
 CREATE SCHEMA IF NOT EXISTS RAN_4G COMMENT = '4G Radio Access Network data';
 CREATE SCHEMA IF NOT EXISTS RAN_5G COMMENT = '5G Radio Access Network data';
@@ -72,6 +75,7 @@ CREATE SCHEMA IF NOT EXISTS TRANSPORT COMMENT = 'Transport network data (backhau
 CREATE SCHEMA IF NOT EXISTS ANALYTICS COMMENT = 'Aggregated analytics and dimension tables';
 CREATE SCHEMA IF NOT EXISTS STAGING COMMENT = 'Data staging area';
 
+-- Grant ownership to analyst role after all objects created
 GRANT OWNERSHIP ON DATABASE NETWORK_OPERATIONS TO ROLE NETWORK_OPS_ANALYST COPY CURRENT GRANTS;
 
 -- =============================================================================
