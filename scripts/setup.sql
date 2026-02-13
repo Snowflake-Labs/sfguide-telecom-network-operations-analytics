@@ -528,43 +528,43 @@ CREATE SCHEMA IF NOT EXISTS SNOWFLAKE_INTELLIGENCE.AGENTS;
 
 CREATE OR REPLACE SEMANTIC VIEW NETWORK_OPERATIONS.ANALYTICS.NETWORK_SEMANTIC_VIEW
   tables (
-    SITES as DIM_CELL_SITE primary key (CELL_ID) with synonyms=('cell sites','towers','cells','base stations') comment='Cell site locations and information',
-    PERFORMANCE as FACT_RAN_PERFORMANCE primary key (TIMESTAMP, CELL_ID) with synonyms=('network performance','ran metrics','kpis') comment='Network performance metrics'
+    SITES AS NETWORK_OPERATIONS.ANALYTICS.DIM_CELL_SITE PRIMARY KEY (CELL_ID),
+    PERFORMANCE AS NETWORK_OPERATIONS.ANALYTICS.FACT_RAN_PERFORMANCE PRIMARY KEY (TIMESTAMP, CELL_ID)
   )
   relationships (
-    PERF_TO_SITES as PERFORMANCE(CELL_ID) references SITES(CELL_ID)
+    PERFORMANCE (CELL_ID) REFERENCES SITES
   )
   facts (
-    PERFORMANCE.RRC_CONNESTABATT as RRC_Attempts comment='RRC connection establishment attempts',
-    PERFORMANCE.RRC_CONNESTABSUCC as RRC_Successes comment='RRC connection establishment successes',
-    PERFORMANCE.ERAB_ESTABSUCCRATE as ERAB_Success_Rate comment='E-RAB establishment success rate %',
-    PERFORMANCE.DL_PRB_UTILIZATION as DL_PRB_Util comment='DL PRB utilization %',
-    PERFORMANCE.UL_PRB_UTILIZATION as UL_PRB_Util comment='UL PRB utilization %',
-    PERFORMANCE.CELL_AVAILABILITY as Cell_Availability comment='Cell availability %',
-    PERFORMANCE.DL_THROUGHPUT_MBPS as DL_Throughput comment='DL throughput Mbps',
-    PERFORMANCE.UL_THROUGHPUT_MBPS as UL_Throughput comment='UL throughput Mbps',
-    PERFORMANCE.HANDOVER_ATTEMPTS as HO_Attempts comment='Handover attempts',
-    PERFORMANCE.HANDOVER_SUCCESSES as HO_Successes comment='Handover successes'
+    PERFORMANCE.rrc_attempts AS RRC_CONNESTABATT,
+    PERFORMANCE.rrc_successes AS RRC_CONNESTABSUCC,
+    PERFORMANCE.erab_rate AS ERAB_ESTABSUCCRATE,
+    PERFORMANCE.dl_prb AS DL_PRB_UTILIZATION,
+    PERFORMANCE.ul_prb AS UL_PRB_UTILIZATION,
+    PERFORMANCE.availability AS CELL_AVAILABILITY,
+    PERFORMANCE.dl_throughput AS DL_THROUGHPUT_MBPS,
+    PERFORMANCE.ul_throughput AS UL_THROUGHPUT_MBPS,
+    PERFORMANCE.ho_attempts AS HANDOVER_ATTEMPTS,
+    PERFORMANCE.ho_successes AS HANDOVER_SUCCESSES
   )
   dimensions (
-    PERFORMANCE.TIMESTAMP as Timestamp with synonyms=('time','when') comment='Measurement time',
-    PERFORMANCE.TECHNOLOGY as Technology with synonyms=('tech','4g','5g') comment='Technology type (4G/5G)',
-    SITES.CELL_ID as Cell_ID comment='Cell site ID',
-    SITES.SITE_ID as Site_ID comment='Site identifier',
-    SITES.CITY as City with synonyms=('city','location') comment='City',
-    SITES.REGION as Region with synonyms=('region','area') comment='Region'
+    PERFORMANCE.measurement_time AS TIMESTAMP,
+    PERFORMANCE.tech AS TECHNOLOGY,
+    SITES.cell_id AS CELL_ID,
+    SITES.site_id AS SITE_ID,
+    SITES.city AS CITY,
+    SITES.region AS REGION
   )
   metrics (
-    RRC_SUCCESS_RATE as (SUM(PERFORMANCE.RRC_CONNESTABSUCC) * 100.0 / NULLIF(SUM(PERFORMANCE.RRC_CONNESTABATT), 0)) comment='RRC success rate % - target >= 95%',
-    AVG_DL_PRB_UTIL as AVG(PERFORMANCE.DL_PRB_UTILIZATION) comment='Average DL PRB utilization % - warning > 70%',
-    AVG_UL_PRB_UTIL as AVG(PERFORMANCE.UL_PRB_UTILIZATION) comment='Average UL PRB utilization %',
-    AVG_DL_THROUGHPUT as AVG(PERFORMANCE.DL_THROUGHPUT_MBPS) comment='Average DL throughput Mbps',
-    AVG_UL_THROUGHPUT as AVG(PERFORMANCE.UL_THROUGHPUT_MBPS) comment='Average UL throughput Mbps',
-    AVG_AVAILABILITY as AVG(PERFORMANCE.CELL_AVAILABILITY) comment='Average cell availability % - target >= 99%',
-    TOTAL_SITES as COUNT(DISTINCT SITES.CELL_ID) comment='Total cell sites',
-    HO_SUCCESS_RATE as (SUM(PERFORMANCE.HANDOVER_SUCCESSES) * 100.0 / NULLIF(SUM(PERFORMANCE.HANDOVER_ATTEMPTS), 0)) comment='Handover success rate %'
+    PERFORMANCE.rrc_success_rate AS (SUM(rrc_successes) * 100.0 / NULLIF(SUM(rrc_attempts), 0)),
+    PERFORMANCE.avg_dl_prb AS AVG(dl_prb),
+    PERFORMANCE.avg_ul_prb AS AVG(ul_prb),
+    PERFORMANCE.avg_dl_throughput AS AVG(dl_throughput),
+    PERFORMANCE.avg_ul_throughput AS AVG(ul_throughput),
+    PERFORMANCE.avg_availability AS AVG(availability),
+    SITES.total_sites AS COUNT(DISTINCT cell_id),
+    PERFORMANCE.ho_success_rate AS (SUM(ho_successes) * 100.0 / NULLIF(SUM(ho_attempts), 0))
   )
-  comment='Network performance semantic view for natural language queries';
+;
 
 -- Verify semantic view
 DESCRIBE SEMANTIC VIEW NETWORK_SEMANTIC_VIEW;
