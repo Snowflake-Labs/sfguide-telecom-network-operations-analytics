@@ -86,7 +86,7 @@ USE SCHEMA STAGING;
 CREATE OR REPLACE NETWORK RULE GITHUB_NETWORK_RULE
     MODE = EGRESS
     TYPE = HOST_PORT
-    VALUE_LIST = ('raw.githubusercontent.com');
+    VALUE_LIST = ('raw.githubusercontent.com', 'media.githubusercontent.com');
 
 CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION GITHUB_ACCESS_INTEGRATION
     ALLOWED_NETWORK_RULES = (GITHUB_NETWORK_RULE)
@@ -371,7 +371,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from snowflake.snowpark import Session
 
 def load_data(session: Session) -> str:
-    base_url = "https://raw.githubusercontent.com/Snowflake-Labs/sfguide-telecom-network-operations-analytics/main/scripts/csvs"
+    base_url = "https://media.githubusercontent.com/media/Snowflake-Labs/sfguide-telecom-network-operations-analytics/main/scripts/csvs"
     stage_path = "@NETWORK_OPERATIONS.STAGING.CSV_DATA"
     
     files_to_load = [
