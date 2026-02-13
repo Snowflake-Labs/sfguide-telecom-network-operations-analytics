@@ -329,49 +329,72 @@ EXTERNAL_ACCESS_INTEGRATIONS = (GITHUB_ACCESS_INTEGRATION)
 AS
 $$
 import requests
-import csv
-from io import StringIO
+import gzip
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from snowflake.snowpark import Session
 
 def load_data(session: Session) -> str:
     base_url = "https://raw.githubusercontent.com/Snowflake-Labs/sfguide-telecom-network-operations-analytics/main/scripts/csvs"
+    stage_path = "@NETWORK_OPERATIONS.STAGING.CSV_DATA"
     
     files_to_load = [
-        ("DIM_CELL_SITE.csv", "NETWORK_OPERATIONS.ANALYTICS.DIM_CELL_SITE"),
-        ("DIM_NETWORK_ELEMENT.csv", "NETWORK_OPERATIONS.ANALYTICS.DIM_NETWORK_ELEMENT"),
-        ("ENODEB_PERFORMANCE.csv", "NETWORK_OPERATIONS.RAN_4G.ENODEB_PERFORMANCE"),
-        ("GNODEB_PERFORMANCE.csv", "NETWORK_OPERATIONS.RAN_5G.GNODEB_PERFORMANCE"),
-        ("MME_4G.csv", "NETWORK_OPERATIONS.CORE_4G.MME_4G"),
-        ("SGW_4G.csv", "NETWORK_OPERATIONS.CORE_4G.SGW_4G"),
-        ("PGW_4G.csv", "NETWORK_OPERATIONS.CORE_4G.PGW_4G"),
-        ("AMF_5G.csv", "NETWORK_OPERATIONS.CORE_5G.AMF_5G"),
-        ("SMF_5G.csv", "NETWORK_OPERATIONS.CORE_5G.SMF_5G"),
-        ("UPF_5G.csv", "NETWORK_OPERATIONS.CORE_5G.UPF_5G"),
-        ("TRANSPORT_DEVICE_PERFORMANCE.csv", "NETWORK_OPERATIONS.TRANSPORT.TRANSPORT_DEVICE_PERFORMANCE"),
-        ("FACT_RAN_PERFORMANCE.csv", "NETWORK_OPERATIONS.ANALYTICS.FACT_RAN_PERFORMANCE"),
-        ("FACT_CORE_PERFORMANCE.csv", "NETWORK_OPERATIONS.ANALYTICS.FACT_CORE_PERFORMANCE"),
+        ("DIM_CELL_SITE.csv.gz", "NETWORK_OPERATIONS.ANALYTICS.DIM_CELL_SITE"),
+        ("DIM_NETWORK_ELEMENT.csv.gz", "NETWORK_OPERATIONS.ANALYTICS.DIM_NETWORK_ELEMENT"),
+        ("ENODEB_PERFORMANCE.csv.gz", "NETWORK_OPERATIONS.RAN_4G.ENODEB_PERFORMANCE"),
+        ("GNODEB_PERFORMANCE.csv.gz", "NETWORK_OPERATIONS.RAN_5G.GNODEB_PERFORMANCE"),
+        ("MME_4G.csv.gz", "NETWORK_OPERATIONS.CORE_4G.MME_4G"),
+        ("SGW_4G.csv.gz", "NETWORK_OPERATIONS.CORE_4G.SGW_4G"),
+        ("PGW_4G.csv.gz", "NETWORK_OPERATIONS.CORE_4G.PGW_4G"),
+        ("AMF_5G.csv.gz", "NETWORK_OPERATIONS.CORE_5G.AMF_5G"),
+        ("SMF_5G.csv.gz", "NETWORK_OPERATIONS.CORE_5G.SMF_5G"),
+        ("UPF_5G.csv.gz", "NETWORK_OPERATIONS.CORE_5G.UPF_5G"),
+        ("TRANSPORT_DEVICE_PERFORMANCE.csv.gz", "NETWORK_OPERATIONS.TRANSPORT.TRANSPORT_DEVICE_PERFORMANCE"),
+        ("FACT_RAN_PERFORMANCE.csv.gz", "NETWORK_OPERATIONS.ANALYTICS.FACT_RAN_PERFORMANCE"),
+        ("FACT_CORE_PERFORMANCE.csv.gz", "NETWORK_OPERATIONS.ANALYTICS.FACT_CORE_PERFORMANCE"),
     ]
     
-    results = []
+    downloaded_files = {}
     
+    def download_file(filename):
+        url = f"{base_url}/{filename}"
+        response = requests.get(url, timeout=300)
+        response.raise_for_status()
+        local_path = f"/tmp/{filename}"
+        with open(local_path, 'wb') as f:
+            f.write(response.content)
+        return filename, local_path
+    
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(download_file, f[0]): f for f in files_to_load}
+        for future in as_completed(futures):
+            try:
+                filename, local_path = future.result()
+                downloaded_files[filename] = local_path
+            except Exception as e:
+                filename = futures[future][0]
+                downloaded_files[filename] = f"ERROR: {str(e)}"
+    
+    results = []
     for filename, table_name in files_to_load:
         try:
-            url = f"{base_url}/{filename}"
-            response = requests.get(url, timeout=300)
-            response.raise_for_status()
+            if filename not in downloaded_files or downloaded_files[filename].startswith("ERROR"):
+                results.append(f"✗ {filename}: Download failed - {downloaded_files.get(filename, 'Unknown error')}")
+                continue
             
-            csv_content = StringIO(response.text)
-            reader = csv.reader(csv_content)
-            header = next(reader)
+            local_path = downloaded_files[filename]
+            session.file.put(local_path, stage_path, auto_compress=False, overwrite=True)
             
-            rows = list(reader)
-            
-            if rows:
-                df = session.create_dataframe(rows, schema=header)
-                df.write.mode("overwrite").save_as_table(table_name)
-                results.append(f"✓ {filename}: {len(rows)} rows loaded into {table_name}")
-            else:
-                results.append(f"⚠ {filename}: No data found")
+            copy_sql = f"""
+                COPY INTO {table_name}
+                FROM {stage_path}/{filename}
+                FILE_FORMAT = (TYPE = 'CSV' SKIP_HEADER = 1 FIELD_OPTIONALLY_ENCLOSED_BY = '"' NULL_IF = ('NULL', 'null', '') COMPRESSION = 'GZIP')
+                PURGE = FALSE
+                ON_ERROR = 'CONTINUE'
+            """
+            session.sql(f"TRUNCATE TABLE IF EXISTS {table_name}").collect()
+            result = session.sql(copy_sql).collect()
+            rows_loaded = result[0]['rows_loaded'] if result else 0
+            results.append(f"✓ {filename}: {rows_loaded} rows loaded into {table_name}")
                 
         except Exception as e:
             results.append(f"✗ {filename}: Error - {str(e)}")
