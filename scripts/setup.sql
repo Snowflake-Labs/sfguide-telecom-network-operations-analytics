@@ -173,8 +173,9 @@ CREATE TABLE IF NOT EXISTS FACT_RAN_PERFORMANCE (
     PDU_SESSESTABSUCCRATE FLOAT
 );
 
--- Core Performance Facts (matches FACT_CORE_PERFORMANCE.csv)
-CREATE TABLE IF NOT EXISTS FACT_CORE_PERFORMANCE (
+-- Core Performance Facts
+-- CSV headers: Timestamp,Node_ID,Node_Type,Technology,Active_Sessions,CPU_Load,Memory_Utilization,Registration_Attempts,Registration_Successes,Session_Establish_Attempts,Session_Establish_Successes,Paging_Attempts,DL_Data_Volume_GB,UL_Data_Volume_GB
+CREATE OR REPLACE TABLE FACT_CORE_PERFORMANCE (
     TIMESTAMP TIMESTAMP_NTZ,
     NODE_ID VARCHAR(50),
     NODE_TYPE VARCHAR(50),
@@ -196,8 +197,9 @@ CREATE TABLE IF NOT EXISTS FACT_CORE_PERFORMANCE (
 -- =============================================================================
 USE SCHEMA RAN_4G;
 
--- Matches ENODEB_PERFORMANCE.csv
-CREATE TABLE IF NOT EXISTS ENODEB_PERFORMANCE (
+-- ENODEB_PERFORMANCE
+-- CSV headers: eNodeB_ID,Vendor,Cell_ID,Timestamp,RRC_ConnEstabAtt,RRC_ConnEstabSucc,S1SIG_ConnEstabAtt,S1SIG_ConnEstabSucc,ERAB_EstabInitAttNbr_QCI,ERAB_EstabInitSuccNbr_QCI,X2_HO_ExecSuccNbr,DL_PRB_Utilization,UL_PRB_Utilization,DL_Throughput_Cell,UL_Throughput_Cell,Cell_Availability,F1AP_PagingReceivedNbr
+CREATE OR REPLACE TABLE ENODEB_PERFORMANCE (
     ENODEB_ID VARCHAR(50),
     VENDOR VARCHAR(50),
     CELL_ID VARCHAR(50),
@@ -207,7 +209,7 @@ CREATE TABLE IF NOT EXISTS ENODEB_PERFORMANCE (
     S1SIG_CONNESTABATT INTEGER,
     S1SIG_CONNESTABSUCC INTEGER,
     ERAB_ESTABINITATTNBR_QCI INTEGER,
-    ERAB_ESTABINITsuccnbr_QCI INTEGER,
+    ERAB_ESTABINITSUCC_NBR_QCI INTEGER,
     X2_HO_EXECSUCCNBR INTEGER,
     DL_PRB_UTILIZATION FLOAT,
     UL_PRB_UTILIZATION FLOAT,
@@ -222,8 +224,8 @@ CREATE TABLE IF NOT EXISTS ENODEB_PERFORMANCE (
 -- =============================================================================
 USE SCHEMA RAN_5G;
 
--- Matches GNODEB_PERFORMANCE.csv
-CREATE TABLE IF NOT EXISTS GNODEB_PERFORMANCE (
+-- GNODEB_PERFORMANCE\n-- CSV headers: gNodeB_ID,Vendor,Cell_ID,Timestamp,RRC_ConnEstabAtt,RRC_ConnEstabSucc,NGAP_PDUSessResourceSetupAtt,NGAP_PDUSessResourceSetupSucc,QoS_Flows_Estab_Succ,ERAB_EstabInitSuccNbr_QCI,Xn_HO_ExecSuccNbr,RRU_PRB_Used_DL,RRU_PRB_Used_UL,DRB_UEThpDl,DRB_UEThpUl,Cell_Availability,F1AP_PagingReceivedNbr
+CREATE OR REPLACE TABLE GNODEB_PERFORMANCE (
     GNODEB_ID VARCHAR(50),
     VENDOR VARCHAR(50),
     CELL_ID VARCHAR(50),
